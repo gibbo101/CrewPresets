@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>Crew Presets</name>
+  <author>Luke</author>
+  <packageId>luke.crewpresets</packageId>
+  <supportedVersions>
+    <li>1.6</li>
+  </supportedVersions>
+  <description>Save named groups of colonists, animals and mechs - "Mining Crew", "Strike Team", "Pack Train" - and apply them with one click in pawn-selection dialogs, instead of hand-picking the same pawns every time.
+
+Works with the vanilla selection dialogs, so it helps every launch and departure: transporters and shuttles (including modded craft), caravans, caravan splitting, and pit-gate entry.
+
+- Save the current selection as a named group from inside any supported dialog.
+- Apply a group with one click; members that are unavailable (dead, off-map) are skipped with a note.
+- Manage groups in a simple editor: rename, delete, add or remove members.
+- Groups are stored in the save file, like bills.
+
+MULTIPLAYER
+Built with the Multiplayer mod in mind; group changes are synced. Runs fine without Multiplayer installed.</description>
+  <modDependencies>
+    <li>
+      <packageId>brrainz.harmony</packageId>
+      <displayName>Harmony</displayName>
+      <steamWorkshopUrl>steam://url/CommunityFilePage/2009463077</steamWorkshopUrl>
+    </li>
+  </modDependencies>
+  <loadAfter>
+    <li>brrainz.harmony</li>
+    <li>Ludeon.RimWorld</li>
+    <!-- Optional: when present, load after Multiplayer so its API is initialized before our
+         StaticConstructorOnStartup registers sync methods. Not a dependency - the mod runs fine
+         without Multiplayer (the API stub reports MP.enabled = false). -->
+    <li>rwmt.Multiplayer</li>
+  </loadAfter>
+</ModMetaData>
