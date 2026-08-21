@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
   <name>Crew Presets</name>
   <author>Luke</author>
@@ -14,6 +14,7 @@ Works with the vanilla selection dialogs, so it helps every launch and departure
 - Apply a group with one click; members that are unavailable (dead, off-map) are skipped with a note.
 - Manage groups in a simple editor: rename, delete, add or remove members.
 - Groups are stored in the save file, like bills.
+- Optional: adds every skill to the "Sort by" dropdown in those dialogs, so you can line colonists up by Cooking, Shooting, Medicine and so on while choosing who goes. Can be turned off in mod settings.
 
 MULTIPLAYER
 Built with the Multiplayer mod in mind; group changes are synced. Runs fine without Multiplayer installed.</description>

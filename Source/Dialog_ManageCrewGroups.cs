@@ -8,18 +8,21 @@ using Verse;
 namespace CrewPresets
 {
     // Group editor: create/rename/delete groups, add/remove members (grouped under
-    // Colonists / Mechs / Animals headings). All mutations route through PresetActions
+    // Colonists / Mechs / Animals headings), with each colonist's skills laid out in
+    // columns so you can see who you're picking. All mutations route through PresetActions
     // so they sync in Multiplayer.
     public class Dialog_ManageCrewGroups : Window
     {
         private const float HeaderHeight = 30f;
         private const float BucketHeight = 22f;
-        private const float RowHeight = 24f;
         private const float GroupSpacing = 12f;
 
         private Vector2 scrollPos;
+        private static SkillDef sortBy;
+        private static bool sortDescending = true;
 
-        public override Vector2 InitialSize => new Vector2(520f, 640f);
+        public override Vector2 InitialSize =>
+            new Vector2(Mathf.Min(CrewSkillTable.TableWidth, UI.screenWidth - 40f), 640f);
 
         public Dialog_ManageCrewGroups()
         {
@@ -49,7 +52,16 @@ namespace CrewPresets
                 return;
             }
 
-            Rect outRect = new Rect(0f, 40f, inRect.width, inRect.height - 40f);
+            // One skill header for the whole table, outside the scroll view so it stays put.
+            SkillDef clicked = CrewSkillTable.DrawHeader(0f, 40f, sortBy, sortDescending);
+            if (clicked != null)
+            {
+                if (clicked == sortBy) sortDescending = !sortDescending;
+                else { sortBy = clicked; sortDescending = true; }
+            }
+            float top = 40f + CrewSkillTable.HeaderHeight;
+
+            Rect outRect = new Rect(0f, top, inRect.width, inRect.height - top);
             float viewHeight = groups.Sum(GroupHeight);
             Rect viewRect = new Rect(0f, 0f, outRect.width - 16f, viewHeight);
             Widgets.BeginScrollView(outRect, ref scrollPos, viewRect);
@@ -69,7 +81,7 @@ namespace CrewPresets
                     name => PresetActions.RenameGroup(index, name)));
             }
             if (Widgets.ButtonText(new Rect(bx + 82f, y, 75f, 24f), "Add..."))
-                OpenAddMemberMenu(index, g);
+                Find.WindowStack.Add(new Dialog_PickCrewMembers(index));
             if (Widgets.ButtonText(new Rect(bx + 164f, y, 75f, 24f), "Delete"))
             {
                 Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
@@ -85,42 +97,28 @@ namespace CrewPresets
 
         private void DrawBucket(ref float y, float width, int index, CrewGroup g, string label, Func<Pawn, bool> test)
         {
-            List<Pawn> list = g.members.Where(p => p != null && test(p)).ToList();
+            List<Pawn> list = CrewSkillTable.Sorted(g.members.Where(p => p != null && test(p)), sortBy, sortDescending).ToList();
             if (list.Count == 0) return;
             GUI.color = Color.gray;
             Widgets.Label(new Rect(12f, y, width - 12f, BucketHeight), label);
             GUI.color = Color.white;
             y += BucketHeight;
+            int i = 0;
             foreach (Pawn p in list)
             {
+                Rect row = new Rect(0f, y, width, CrewSkillTable.RowHeight);
+                if (i++ % 2 == 1) Widgets.DrawAltRect(row);
+                Widgets.DrawHighlightIfMouseover(row);
                 bool gone = p.Dead || p.Destroyed;
                 if (gone) GUI.color = Color.gray;
-                Widgets.Label(new Rect(24f, y + 2f, width - 84f, 22f),
-                    p.LabelShortCap + (p.Dead ? " (dead)" : p.Destroyed ? " (gone)" : ""));
+                CrewSkillTable.DrawPawnLabel(0f, y, p, p.Dead ? " (dead)" : p.Destroyed ? " (gone)" : null);
                 GUI.color = Color.white;
+                if (!gone) CrewSkillTable.DrawCells(0f, y, p);
                 Pawn pawn = p;
-                if (Widgets.ButtonText(new Rect(width - 50f, y, 40f, 22f), "X"))
+                if (Widgets.ButtonText(new Rect(CrewSkillTable.RemoveButtonX, y + 3f, CrewSkillTable.RemoveButtonWidth, 22f), "X"))
                     PresetActions.RemoveMember(index, pawn);
-                y += RowHeight;
+                y += CrewSkillTable.RowHeight;
             }
-        }
-
-        private static void OpenAddMemberMenu(int index, CrewGroup g)
-        {
-            List<FloatMenuOption> opts = new List<FloatMenuOption>();
-            IEnumerable<Pawn> candidates = PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive_OfPlayerFaction
-                .Where(p => !g.members.Contains(p))
-                .OrderBy(p => p.RaceProps.Humanlike ? 0 : p.RaceProps.IsMechanoid ? 1 : 2)
-                .ThenBy(p => p.LabelShort);
-            foreach (Pawn p in candidates)
-            {
-                Pawn pawn = p;
-                opts.Add(new FloatMenuOption(pawn.LabelShortCap + ", " + pawn.KindLabel,
-                    () => PresetActions.AddMember(index, pawn)));
-            }
-            if (opts.Count == 0)
-                opts.Add(new FloatMenuOption("(no pawns available)", null));
-            Find.WindowStack.Add(new FloatMenu(opts));
         }
 
         private static float GroupHeight(CrewGroup g)
@@ -135,7 +133,7 @@ namespace CrewPresets
         private static float BucketHeight_(CrewGroup g, Func<Pawn, bool> test)
         {
             int n = g.members.Count(p => p != null && test(p));
-            return n == 0 ? 0f : BucketHeight + n * RowHeight;
+            return n == 0 ? 0f : BucketHeight + n * CrewSkillTable.RowHeight;
         }
     }
 }
