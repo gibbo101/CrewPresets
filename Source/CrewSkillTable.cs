@@ -17,27 +17,32 @@ namespace CrewPresets
     {
         public const float PortraitSize = 28f;
         public const float NameTextWidth = 160f;
-        public const float CellWidth = 42f;
-        public const float HeaderHeight = 46f;
+        public const float CellWidth = 39f;
+        public const float HeaderHeight = 50f;
         public const float RowHeight = 30f;
         public const float RemoveButtonWidth = 40f;
-        public const float BoxSize = 26f;
+        public const float WeaponWidth = 30f;
+        public const float BoxSize = 25f;
 
         private const float HeaderLabelHeight = 20f;
 
         private static readonly Color DisabledSkillColor = new Color(1f, 1f, 1f, 0.5f);
         private static readonly Color LevelColor = new Color(0.93f, 0.9f, 0.72f);
+        private static readonly Color PassionColor = new Color(1f, 0.85f, 0.25f, 0.75f);
         private static readonly Color HeaderLineColor = new Color(1f, 1f, 1f, 0.45f);
 
         // Not cached: mods can add SkillDefs, and this is only read while a dialog is open.
         public static List<SkillDef> Skills => DefDatabase<SkillDef>.AllDefsListForReading;
 
-        public static float SkillsX => 4f + PortraitSize + 4f + NameTextWidth + 8f;
+        public static float WeaponX => 4f + PortraitSize + 4f + NameTextWidth + 4f;
+        public static float SkillsX => WeaponX + WeaponWidth + 8f;
         public static float SkillsWidth => Skills.Count * CellWidth;
         public static float RemoveButtonX => SkillsX + SkillsWidth + 10f;
 
-        // Dialog width that fits the whole table plus scrollbar and margin.
-        public static float TableWidth => RemoveButtonX + RemoveButtonWidth + 16f + 24f;
+        // Dialog width that fits the whole table. Window.InitialSize counts the window's
+        // own 18px margins, which DoWindowContents never sees - miss them and the last
+        // column falls off the right edge.
+        public static float TableWidth => RemoveButtonX + RemoveButtonWidth + 16f + 4f + 2f * 18f;
 
         // Skill names are wider than their columns, so alternate them between two rows the
         // way the Work tab does, with a rule dropping to the column it belongs to.
@@ -53,7 +58,7 @@ namespace CrewPresets
                 float centre = x + SkillsX + i * CellWidth + CellWidth / 2f;
                 float labelY = y + (i % 2 == 0 ? 0f : HeaderLabelHeight);
                 // 82 wide, not the full 90: same-row neighbours sit 2 columns (84px) apart.
-                Rect label = new Rect(centre - 41f, labelY, 82f, HeaderLabelHeight);
+                Rect label = new Rect(centre - 38f, labelY, 76f, HeaderLabelHeight);
                 Rect column = new Rect(centre - CellWidth / 2f, label.yMax, CellWidth, y + HeaderHeight - label.yMax);
 
                 if (skills[i] == sortBy) GUI.color = Color.cyan;
@@ -63,7 +68,9 @@ namespace CrewPresets
                 Widgets.DrawHighlightIfMouseover(label);
 
                 GUI.color = HeaderLineColor;
-                Widgets.DrawLineVertical(centre, label.yMax, column.height);
+                // Run the rule past the header edge by the row's top padding so it touches
+                // the first box, the way the Work tab's column rules do.
+                Widgets.DrawLineVertical(centre, label.yMax, column.height + (RowHeight - BoxSize) / 2f);
                 GUI.color = Color.white;
 
                 if (Widgets.ButtonInvisible(label) || Widgets.ButtonInvisible(column))
@@ -108,6 +115,18 @@ namespace CrewPresets
             Widgets.Label(rect, label.Truncate(NameTextWidth));
             Text.WordWrap = true;
             Text.Anchor = TextAnchor.UpperLeft;
+        }
+
+        // Equipped weapon, drawn the way the transfer dialogs do it: just the icon, with the
+        // weapon's name on hover. Pawns carrying nothing leave the cell empty.
+        public static void DrawWeapon(float x, float y, Pawn pawn)
+        {
+            if (pawn?.equipment?.Primary == null) return;
+            ThingWithComps weapon = pawn.equipment.Primary;
+            Rect rect = new Rect(x + WeaponX, y, WeaponWidth, RowHeight);
+            Widgets.DrawHighlightIfMouseover(rect);
+            Widgets.ThingIcon(new Rect(rect.x, rect.y + (RowHeight - WeaponWidth) / 2f, WeaponWidth, WeaponWidth), weapon);
+            TooltipHandler.TipRegion(rect, weapon.LabelCap);
         }
 
         // One pawn's skill cells, drawn as Work-tab style boxes: background shaded by level,
@@ -175,7 +194,7 @@ namespace CrewPresets
 
             if (passion > Passion.None)
             {
-                GUI.color = new Color(1f, 1f, 1f, 0.4f);
+                GUI.color = PassionColor;
                 Rect corner = box;
                 corner.xMin = box.center.x;
                 corner.yMin = box.center.y;

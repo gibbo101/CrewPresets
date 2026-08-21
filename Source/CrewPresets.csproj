@@ -15,7 +15,7 @@
     <PackageReference Include="Lib.Harmony" Version="2.3.3" ExcludeAssets="runtime" />
     <!-- MP sync for group CRUD. The API stub DLL must ship in Assemblies/ (see CopyToMod)
          or the mod fails to load even in singleplayer. -->
-    <PackageReference Include="RimWorld.MultiplayerAPI" Version="0.5.0" />
+    <PackageReference Include="RimWorld.MultiplayerAPI" Version="0.6.0" />
   </ItemGroup>
 
   <!-- Use Krafs.Rimworld.Ref's reference assemblies instead of the .NET Framework dev pack. -->

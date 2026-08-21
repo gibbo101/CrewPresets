@@ -151,3 +151,35 @@ EDITOR (`Dialog_ManageCrewGroups` rows + the "Add..." float menu labels) — not
 Player.log warns `Mod Crew Presets uses an older API version (mod: 0.5, current: 0.6)`. Nothing is broken
 at 0.5, so **do it AFTER the current MP test run finishes** - the bump reships `0MultiplayerAPI.dll` via
 the CopyToMod target, and swapping it mid-playthrough risks disturbing the live co-op session.
+
+**SKILL TABLE ON THE GROUP SCREENS (2026-08-21, tested in-game green, committed)** — the Workshop
+request resolved properly. The sorters (previous entry) stay, but they were NOT what Luke wanted: his
+Workshop reply promised skills on the group screen itself. Shared `CrewSkillTable` draws a Work-tab
+style grid used by both group dialogs: portrait + "name, title", equipped-weapon icon column (mirrors
+`TransferableOneWayWidget.DrawEquippedWeapon` - icon + LabelCap tooltip), then one box per SkillDef.
+Boxes mirror `WidgetsWork.DrawWorkBoxBackground` (same WorkBoxBG textures, same 0-4/4-14/14-20
+thresholds) keyed to ONE skill's level instead of a work type's relevant-skill average; passion flame
+in the bottom-right quadrant, TINTED YELLOW (the workbox art is greyscale, so tinting beats swapping in
+the bigger character-sheet icons). Metrics copied from vanilla: 39px columns, 25px box, 50px header
+(`PawnColumnWorker_WorkPriority.GetMinWidth`). Staggered two-row headers with a rule dropping to the
+column, since skill names are wider than 39px.
+`Dialog_PickCrewMembers` REPLACES the old add-member float menu: whole colony, paintable
+`Widgets.Checkbox(paintable: true)` tick/cross column (vanilla's green-tick/red-X art + drag-painting),
+click a skill header to sort. **Edits are BUFFERED in a local HashSet and written on "Done" via one
+synced `SetGroupMembers`** - Luke's bug: closing with the X still saved. Bonus: a drag across ten rows
+is now one sync command, not ten. Button renamed "Add..." -> "Members" (the screen removes too).
+LAYOUT GOTCHAS: (1) `Window.InitialSize` counts the window's own 18px margins, which
+`DoWindowContents` never sees - miss them and the last column falls off the right edge; (2) the skill
+header must be drawn PER GROUP on the manage screen, not pinned at the top - pinned, it floats over
+nothing when a group is empty and lines up with only the first group; (3) sort state must be per group
+(was static = every group sorted together); (4) group divider goes BETWEEN groups, not under the group
+name; (5) both dialogs need an explicit "Done" - the close X alone reads as cancel.
+ALSO: `RimWorld.MultiplayerAPI` 0.5 -> 0.6 (the queued bump; compiled with no code changes, stub
+reships via CopyToMod).
+CONSIDERED AND DROPPED: the same grid on the transfer dialogs' Pawns tab. `TransferableOneWayWidget.DoRow`
+packs columns RIGHT-TO-LEFT (11 `width -=` steps) and gives the remainder to the name block - on
+Load Transporters ~519px of 1024 is left and the grid needs 468, so it needs the dialog widened plus a
+DoRow postfix re-deriving vanilla's column arithmetic from private draw* flags. Fragile across game
+updates and collides with other dialog patchers (incl. our own OdysseyShuttleVariants). Luke: "leave as
+it is". If revisited, wire our column headers to the widget's private `sorter1` and delete the dropdown
+sorter entries + their setting.
