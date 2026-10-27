@@ -32,7 +32,7 @@ namespace CrewPresets
         }
     }
 
-    // Answers the "sort colonists by skill in the shuttle/caravan dialogs" request without
+    // Adds a "<skill> skill" entry to the transferable dialogs' "Sort by" dropdowns without
     // patching any dialog: TransferableUIUtility.DoTransferableSorters builds its dropdown
     // straight from DefDatabase<TransferableSorterDef>, and every transferable dialog uses
     // that same widget - so registering defs here reaches all of them (transporters and
@@ -73,15 +73,14 @@ namespace CrewPresets
             List<TransferableSorterDef> list = new List<TransferableSorterDef>();
             foreach (SkillDef skill in DefDatabase<SkillDef>.AllDefsListForReading.OrderBy(s => s.label))
             {
-                SkillDef s = skill;
                 TransferableSorterDef def = new TransferableSorterDef
                 {
                     // Prefixed: defNames share one namespace across every mod.
-                    defName = "CrewPresets_Skill_" + s.defName,
+                    defName = "CrewPresets_Skill_" + skill.defName,
                     // Lowercase to match the vanilla entries ("market value", "hit points percentage").
-                    label = s.label + " skill",
+                    label = skill.label + " skill",
                 };
-                ComparerField.SetValue(def, new TransferableComparer_Skill(s));
+                ComparerField.SetValue(def, new TransferableComparer_Skill(skill));
                 list.Add(def);
             }
             return list;

@@ -44,11 +44,16 @@ namespace CrewPresets
         // column falls off the right edge.
         public static float TableWidth => RemoveButtonX + RemoveButtonWidth + 16f + 4f + 2f * 18f;
 
+        // Animals and anything else that is neither humanlike nor a mechanoid.
+        public static bool IsAnimal(Pawn p) => !p.RaceProps.Humanlike && !p.RaceProps.IsMechanoid;
+
         // Skill names are wider than their columns, so alternate them between two rows the
         // way the Work tab does, with a rule dropping to the column it belongs to.
-        // Returns the skill whose header was clicked this frame, or null.
-        public static SkillDef DrawHeader(float x, float y, SkillDef sortBy = null, bool descending = true)
+        // Clicking a column header re-sorts by that skill.
+        public static void DrawHeader(float x, float y, SkillSort sort)
         {
+            SkillDef sortBy = sort.Skill;
+            bool descending = sort.Descending;
             SkillDef clicked = null;
             Text.Font = GameFont.Tiny;
             Text.Anchor = TextAnchor.MiddleCenter;
@@ -57,7 +62,7 @@ namespace CrewPresets
             {
                 float centre = x + SkillsX + i * CellWidth + CellWidth / 2f;
                 float labelY = y + (i % 2 == 0 ? 0f : HeaderLabelHeight);
-                // 82 wide, not the full 90: same-row neighbours sit 2 columns (84px) apart.
+                // Narrower than the two-column gap to the next label on the same row.
                 Rect label = new Rect(centre - 38f, labelY, 76f, HeaderLabelHeight);
                 Rect column = new Rect(centre - CellWidth / 2f, label.yMax, CellWidth, y + HeaderHeight - label.yMax);
 
@@ -78,30 +83,50 @@ namespace CrewPresets
             }
             Text.Anchor = TextAnchor.UpperLeft;
             Text.Font = GameFont.Small;
-            return clicked;
+            if (clicked != null)
+                sort.OnHeaderClicked(clicked);
         }
 
         // Level as shown in the cells; -1 for anything that hasn't got the skill at all, so
         // animals, mechs and disabled skills sort to the bottom rather than reading as 0.
-        public static int LevelFor(Pawn pawn, SkillDef skill)
+        private static int LevelFor(Pawn pawn, SkillDef skill)
         {
             if (pawn?.skills == null) return -1;
             SkillRecord rec = pawn.skills.GetSkill(skill);
             return rec == null || rec.TotallyDisabled ? -1 : rec.GetLevelForUI();
         }
 
-        // Orders pawns by one skill (highest first unless ascending), name as the tiebreak.
-        // A null skill just sorts by name.
-        public static IEnumerable<Pawn> Sorted(IEnumerable<Pawn> pawns, SkillDef skill, bool descending)
+        // Orders pawns by the sort's skill in its direction, name as the tiebreak.
+        // No skill just sorts by name.
+        public static IEnumerable<Pawn> Sorted(IEnumerable<Pawn> pawns, SkillSort sort)
         {
+            SkillDef skill = sort.Skill;
             if (skill == null) return pawns.OrderBy(p => p.LabelShort);
-            return descending
+            return sort.Descending
                 ? pawns.OrderByDescending(p => LevelFor(p, skill)).ThenBy(p => p.LabelShort)
                 : pawns.OrderBy(p => LevelFor(p, skill)).ThenBy(p => p.LabelShort);
         }
 
+        // Alternating stripe and mouseover highlight for the rowIndex-th row of a table.
+        public static void DrawRowBackground(float y, float width, int rowIndex)
+        {
+            Rect row = new Rect(0f, y, width, RowHeight);
+            if (rowIndex % 2 == 1) Widgets.DrawAltRect(row);
+            Widgets.DrawHighlightIfMouseover(row);
+        }
+
+        // Portrait, name, weapon and skill cells for one pawn. A greyed row shows no skills.
+        public static void DrawPawnRow(float x, float y, Pawn pawn, string suffix = null, bool greyed = false)
+        {
+            if (greyed) GUI.color = Color.gray;
+            DrawPawnLabel(x, y, pawn, suffix);
+            DrawWeapon(x, y, pawn);
+            GUI.color = Color.white;
+            if (!greyed) DrawCells(x, y, pawn);
+        }
+
         // Portrait + "name, title", matching PawnColumnWorker_Label's shape.
-        public static void DrawPawnLabel(float x, float y, Pawn pawn, string suffix = null)
+        private static void DrawPawnLabel(float x, float y, Pawn pawn, string suffix = null)
         {
             Widgets.ThingIcon(new Rect(x + 4f, y + (RowHeight - PortraitSize) / 2f, PortraitSize, PortraitSize), pawn);
             string label = pawn.LabelShortCap;
@@ -119,7 +144,7 @@ namespace CrewPresets
 
         // Equipped weapon, drawn the way the transfer dialogs do it: just the icon, with the
         // weapon's name on hover. Pawns carrying nothing leave the cell empty.
-        public static void DrawWeapon(float x, float y, Pawn pawn)
+        private static void DrawWeapon(float x, float y, Pawn pawn)
         {
             if (pawn?.equipment?.Primary == null) return;
             ThingWithComps weapon = pawn.equipment.Primary;
@@ -132,7 +157,7 @@ namespace CrewPresets
         // One pawn's skill cells, drawn as Work-tab style boxes: background shaded by level,
         // the level centred on it, and a grey passion flame in the bottom-right quadrant.
         // Pawns without a skill tracker (animals, mechs) draw nothing.
-        public static void DrawCells(float x, float y, Pawn pawn)
+        private static void DrawCells(float x, float y, Pawn pawn)
         {
             if (pawn?.skills == null) return;
             Text.Anchor = TextAnchor.MiddleCenter;
@@ -203,6 +228,21 @@ namespace CrewPresets
                     : WidgetsWork.PassionWorkboxMinorIcon);
                 GUI.color = Color.white;
             }
+        }
+    }
+
+    // A skill table's sort: by one skill in either direction, or by name when Skill is null.
+    internal sealed class SkillSort
+    {
+        public SkillDef Skill;
+        public bool Descending = true;
+
+        // Clicking the current column flips its direction; any other column sorts by that
+        // skill, highest first.
+        public void OnHeaderClicked(SkillDef clicked)
+        {
+            if (clicked == Skill) Descending = !Descending;
+            else { Skill = clicked; Descending = true; }
         }
     }
 }

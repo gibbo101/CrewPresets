@@ -48,13 +48,16 @@ namespace CrewPresets
     {
         private static readonly Color ActiveColor = new Color(0.55f, 1f, 0.55f);
         private const float ButtonWidth = 160f;
+        private const float ButtonHeight = 30f;
+
+        public static Rect ButtonRect(float xMax, float y) => new Rect(xMax - ButtonWidth, y, ButtonWidth, ButtonHeight);
 
         public static void DrawHeaderControls(Window dlg, Rect inRect, DialogHooks hooks)
         {
             if (!hooks.OnPawnsTab(dlg))
                 return;
             List<TransferableOneWay> transferables = hooks.Transferables(dlg);
-            DrawButton(new Rect(inRect.xMax - ButtonWidth, 6f, ButtonWidth, 30f),
+            DrawButton(ButtonRect(inRect.xMax, 6f),
                 () => PresetApplier.SelectedPawns(transferables),
                 (g, sel) => PresetApplier.MatchesSelection(g, sel, transferables),
                 g => PresetApplier.ApplyToTransferables(g, transferables, () => hooks.NotifyChanged(dlg)));
@@ -95,11 +98,8 @@ namespace CrewPresets
             opts.Add(new FloatMenuOption("Save current selection as...", () =>
             {
                 List<Pawn> selected = selectedGetter();
-                if (selected.Count == 0)
-                {
-                    Messages.Message("No pawns are selected.", MessageTypeDefOf.RejectInput, historical: false);
+                if (RejectIfEmpty(selected))
                     return;
-                }
                 Find.WindowStack.Add(new Dialog_NameCrewGroup("Name this crew group", "",
                     name => PresetActions.CreateGroup(name, selected)));
             }));
@@ -109,20 +109,28 @@ namespace CrewPresets
 
         private static void OverwriteGroup(int index, CrewGroup group, List<Pawn> selected)
         {
-            if (selected.Count == 0)
-            {
-                Messages.Message("No pawns are selected.", MessageTypeDefOf.RejectInput, historical: false);
+            if (RejectIfEmpty(selected))
                 return;
-            }
             Find.WindowStack.Add(Dialog_MessageBox.CreateConfirmation(
-                "Overwrite \"" + group.name + "\" with the current selection (" + selected.Count + " pawn" + (selected.Count == 1 ? "" : "s") + ")?",
+                "Overwrite \"" + group.name + "\" with the current selection (" + CountOf(selected.Count, "pawn") + ")?",
                 () =>
                 {
                     PresetActions.SetGroupMembers(index, selected);
-                    Messages.Message("\"" + group.name + "\" now has " + selected.Count + " member" + (selected.Count == 1 ? "" : "s") + ".",
+                    Messages.Message("\"" + group.name + "\" now has " + CountOf(selected.Count, "member") + ".",
                         MessageTypeDefOf.TaskCompletion, historical: false);
                 }));
         }
+
+        // Shows the "nothing selected" rejection and returns true when the selection is empty.
+        private static bool RejectIfEmpty(List<Pawn> selected)
+        {
+            if (selected.Count > 0)
+                return false;
+            Messages.Message("No pawns are selected.", MessageTypeDefOf.RejectInput, historical: false);
+            return true;
+        }
+
+        private static string CountOf(int count, string noun) => count + " " + noun + (count == 1 ? "" : "s");
     }
 
     [HarmonyPatch(typeof(Dialog_LoadTransporters), nameof(Dialog_LoadTransporters.DoWindowContents))]
@@ -191,7 +199,7 @@ namespace CrewPresets
             EnsureBoardingPanel(__instance, engine);
 
             // Top-right of the header row; the header label + icon sit top-left.
-            PresetUI.DrawButton(new Rect(inRect.xMax - 160f, inRect.y, 160f, 30f),
+            PresetUI.DrawButton(PresetUI.ButtonRect(inRect.xMax, inRect.y),
                 () => GravshipPresets.CaptureMembers(assignments, engine),
                 (g, sel) => GravshipPresets.MatchesGroup(g, assignments, engine),
                 g => PresetActions.ApplyGroupToGravship(assignments, GameComponent_CrewPresets.Get.groups.IndexOf(g)));

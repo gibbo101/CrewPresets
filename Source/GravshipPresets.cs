@@ -5,7 +5,6 @@ using HarmonyLib;
 using RimWorld;
 using UnityEngine;
 using Verse;
-using Verse.AI;
 
 namespace CrewPresets
 {
@@ -22,7 +21,13 @@ namespace CrewPresets
         public static Building_GravEngine EngineFor(RitualRoleAssignments assignments)
         {
             if (assignments == null) return null;
-            return ((TargetInfo)ritualTargetField.GetValue(assignments)).Thing?.TryGetComp<CompPilotConsole>()?.engine;
+            return EngineAt((TargetInfo)ritualTargetField.GetValue(assignments));
+        }
+
+        // The engine a launch ritual targets: the ritual's target is the pilot console.
+        public static Building_GravEngine EngineAt(TargetInfo ritualTarget)
+        {
+            return ritualTarget.Thing?.TryGetComp<CompPilotConsole>()?.engine;
         }
 
         public static Building_GravEngine EngineById(int engineId)
@@ -50,6 +55,20 @@ namespace CrewPresets
             return result;
         }
 
+        // Colony animals, then colony mechs.
+        public static List<Pawn> AllBoardablePawns(Map map)
+        {
+            List<Pawn> all = BoardablePawns(map, mechs: false);
+            all.AddRange(BoardablePawns(map, mechs: true));
+            return all;
+        }
+
+        // Forced and extra-required participants are fixed by the ritual; presets never move them.
+        public static bool IsRequired(RitualRoleAssignments assignments, Pawn p)
+        {
+            return assignments.Forced(p) || (assignments.ExtraRequiredPawnsForReading?.Contains(p) ?? false);
+        }
+
         public static bool IsBoardingAllowed(int engineId, Pawn pawn)
         {
             List<Pawn> excl = GameComponent_CrewPresets.Get.ExclusionsFor(engineId);
@@ -65,7 +84,7 @@ namespace CrewPresets
                 .Where(p => p != null && !p.Dead && p.RaceProps.Humanlike && assignments.AllCandidatePawns.Contains(p))
                 .ToList();
             List<Pawn> spectators = assignments.SpectatorsForReading
-                .Where(p => !PresetApplier.IsRequired(assignments, p))
+                .Where(p => !IsRequired(assignments, p))
                 .ToList();
             if (spectators.Count != presentCrew.Count || !presentCrew.All(p => spectators.Contains(p) || assignments.PawnParticipating(p)))
                 return false;
@@ -80,16 +99,14 @@ namespace CrewPresets
 
         public static List<Pawn> CurrentlyAllowed(Building_GravEngine engine)
         {
-            List<Pawn> all = BoardablePawns(engine.Map, mechs: false);
-            all.AddRange(BoardablePawns(engine.Map, mechs: true));
-            return all.Where(p => IsBoardingAllowed(engine.thingIDNumber, p)).ToList();
+            return AllBoardablePawns(engine.Map).Where(p => IsBoardingAllowed(engine.thingIDNumber, p)).ToList();
         }
 
         // Current launch setup as preset members: non-required crew + allowed animals/mechs.
         public static List<Pawn> CaptureMembers(RitualRoleAssignments assignments, Building_GravEngine engine)
         {
             List<Pawn> result = assignments.SpectatorsForReading
-                .Where(p => p.RaceProps.Humanlike && !PresetApplier.IsRequired(assignments, p))
+                .Where(p => p.RaceProps.Humanlike && !IsRequired(assignments, p))
                 .ToList();
             if (engine != null) result.AddRange(CurrentlyAllowed(engine));
             return result;
@@ -103,7 +120,7 @@ namespace CrewPresets
     {
         public static void Postfix(TargetInfo target)
         {
-            Building_GravEngine engine = target.Thing?.TryGetComp<CompPilotConsole>()?.engine;
+            Building_GravEngine engine = GravshipPresets.EngineAt(target);
             if (engine?.pawnsToBoard == null) return;
             List<Pawn> excl = GameComponent_CrewPresets.Get.ExclusionsFor(engine.thingIDNumber);
             if (excl.NullOrEmpty()) return;

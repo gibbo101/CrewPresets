@@ -18,8 +18,7 @@ namespace CrewPresets
 
         private Vector2 scrollPos;
         // Sort is per group: each group's header controls only its own rows.
-        private readonly Dictionary<int, SkillDef> sortBy = new Dictionary<int, SkillDef>();
-        private readonly Dictionary<int, bool> sortDescending = new Dictionary<int, bool>();
+        private readonly Dictionary<int, SkillSort> sorts = new Dictionary<int, SkillSort>();
 
         public override Vector2 InitialSize =>
             new Vector2(Mathf.Min(CrewSkillTable.TableWidth, UI.screenWidth - 40f), 640f);
@@ -97,27 +96,16 @@ namespace CrewPresets
             // skipped entirely when there's nobody here to label.
             if (HasSkilledMembers(g))
             {
-                SkillDef clicked = CrewSkillTable.DrawHeader(0f, y, SortBy(index), Descending(index));
-                if (clicked != null)
-                {
-                    if (clicked == SortBy(index)) sortDescending[index] = !Descending(index);
-                    else { sortBy[index] = clicked; sortDescending[index] = true; }
-                }
+                CrewSkillTable.DrawHeader(0f, y, SortFor(index));
                 y += CrewSkillTable.HeaderHeight;
             }
 
             int i = 0;
             foreach (Pawn p in OrderedMembers(g, index))
             {
-                Rect row = new Rect(0f, y, width, CrewSkillTable.RowHeight);
-                if (i++ % 2 == 1) Widgets.DrawAltRect(row);
-                Widgets.DrawHighlightIfMouseover(row);
-                bool gone = p.Dead || p.Destroyed;
-                if (gone) GUI.color = Color.gray;
-                CrewSkillTable.DrawPawnLabel(0f, y, p, p.Dead ? " (dead)" : p.Destroyed ? " (gone)" : null);
-                CrewSkillTable.DrawWeapon(0f, y, p);
-                GUI.color = Color.white;
-                if (!gone) CrewSkillTable.DrawCells(0f, y, p);
+                CrewSkillTable.DrawRowBackground(y, width, i++);
+                CrewSkillTable.DrawPawnRow(0f, y, p, p.Dead ? " (dead)" : p.Destroyed ? " (gone)" : null,
+                    greyed: p.Dead || p.Destroyed);
                 Pawn pawn = p;
                 if (Widgets.ButtonText(new Rect(CrewSkillTable.RemoveButtonX, y + 3f, CrewSkillTable.RemoveButtonWidth, 22f), "X"))
                     PresetActions.RemoveMember(index, pawn);
@@ -126,21 +114,26 @@ namespace CrewPresets
             y += GroupSpacing;
         }
 
-        // Colonists first, then mechs, then animals; the chosen skill sort applies within
-        // each of those. No sub-headings - only colonists have boxes, so the split reads
-        // on its own and the headings only added dead bands to the table.
-        private SkillDef SortBy(int index) => sortBy.TryGetValue(index, out SkillDef d) ? d : null;
+        private SkillSort SortFor(int index)
+        {
+            if (!sorts.TryGetValue(index, out SkillSort sort))
+            {
+                sort = new SkillSort();
+                sorts[index] = sort;
+            }
+            return sort;
+        }
 
-        private bool Descending(int index) => !sortDescending.TryGetValue(index, out bool b) || b;
-
+        // Colonists first, then mechs, then animals; the group's skill sort applies within
+        // each of those. No sub-headings: only colonists have skill boxes, so the split
+        // reads on its own.
         private IEnumerable<Pawn> OrderedMembers(CrewGroup g, int index)
         {
             List<Pawn> members = g.members.Where(p => p != null).ToList();
-            SkillDef skill = SortBy(index);
-            bool desc = Descending(index);
-            return CrewSkillTable.Sorted(members.Where(p => p.RaceProps.Humanlike), skill, desc)
-                .Concat(CrewSkillTable.Sorted(members.Where(p => p.RaceProps.IsMechanoid), skill, desc))
-                .Concat(CrewSkillTable.Sorted(members.Where(p => !p.RaceProps.Humanlike && !p.RaceProps.IsMechanoid), skill, desc));
+            SkillSort sort = SortFor(index);
+            return CrewSkillTable.Sorted(members.Where(p => p.RaceProps.Humanlike), sort)
+                .Concat(CrewSkillTable.Sorted(members.Where(p => p.RaceProps.IsMechanoid), sort))
+                .Concat(CrewSkillTable.Sorted(members.Where(CrewSkillTable.IsAnimal), sort));
         }
 
         private static bool HasSkilledMembers(CrewGroup g)

@@ -17,7 +17,7 @@ namespace CrewPresets
             GameComponent_CrewPresets.Get.groups.Add(new CrewGroup
             {
                 name = name,
-                members = members?.Where(p => p != null).Distinct().ToList() ?? new List<Pawn>()
+                members = DistinctMembers(members)
             });
         }
 
@@ -30,7 +30,7 @@ namespace CrewPresets
         public static void SetGroupMembers(int index, List<Pawn> members)
         {
             CrewGroup g = GroupAt(index);
-            if (g != null) g.members = members?.Where(p => p != null).Distinct().ToList() ?? new List<Pawn>();
+            if (g != null) g.members = DistinctMembers(members);
         }
 
         public static void DeleteGroup(int index)
@@ -42,7 +42,7 @@ namespace CrewPresets
         public static void AddMember(int index, Pawn pawn)
         {
             CrewGroup g = GroupAt(index);
-            if (g != null && pawn != null && !g.members.Contains(pawn)) g.members.Add(pawn);
+            if (g != null && pawn != null) g.members.AddUnique(pawn);
         }
 
         public static void RemoveMember(int index, Pawn pawn)
@@ -67,7 +67,7 @@ namespace CrewPresets
             foreach (Pawn p in assignments.Participants.ToList()) // getter reuses a temp list; copy
             {
                 if (!assignments.PawnSpectating(p)) continue; // leave pilot/copilot alone
-                if (g.members.Contains(p) || PresetApplier.IsRequired(assignments, p)) continue;
+                if (g.members.Contains(p) || GravshipPresets.IsRequired(assignments, p)) continue;
                 assignments.RemoveParticipant(p);
             }
             foreach (Pawn p in g.members)
@@ -92,14 +92,12 @@ namespace CrewPresets
             {
                 List<Pawn> excl = GameComponent_CrewPresets.Get.EnsureExclusionsFor(engine.thingIDNumber);
                 excl.Clear();
-                foreach (Pawn p in GravshipPresets.BoardablePawns(engine.Map, mechs: false))
-                    if (!g.members.Contains(p)) excl.Add(p);
-                foreach (Pawn p in GravshipPresets.BoardablePawns(engine.Map, mechs: true))
+                foreach (Pawn p in GravshipPresets.AllBoardablePawns(engine.Map))
                     if (!g.members.Contains(p)) excl.Add(p);
             }
 
-            if (skipped.Count > 0 && MultiplayerCompat.ShowUiForThisClient)
-                Messages.Message("Couldn't add: " + skipped.ToCommaList(), MessageTypeDefOf.RejectInput, historical: false);
+            if (MultiplayerCompat.ShowUiForThisClient)
+                PresetApplier.ReportSkipped(skipped);
         }
 
         public static void SetBoardingExcluded(int engineId, Pawn pawn, bool excluded)
@@ -107,13 +105,9 @@ namespace CrewPresets
             if (pawn == null) return;
             List<Pawn> excl = GameComponent_CrewPresets.Get.EnsureExclusionsFor(engineId);
             if (excluded)
-            {
-                if (!excl.Contains(pawn)) excl.Add(pawn);
-            }
+                excl.AddUnique(pawn);
             else
-            {
                 excl.Remove(pawn);
-            }
         }
 
         public static void SetBoardingAllForKind(int engineId, bool mechs, bool board)
@@ -124,7 +118,7 @@ namespace CrewPresets
             foreach (Pawn p in GravshipPresets.BoardablePawns(engine.Map, mechs))
             {
                 if (board) excl.Remove(p);
-                else if (!excl.Contains(p)) excl.Add(p);
+                else excl.AddUnique(p);
             }
         }
 
@@ -132,6 +126,11 @@ namespace CrewPresets
         {
             List<CrewGroup> groups = GameComponent_CrewPresets.Get.groups;
             return index >= 0 && index < groups.Count ? groups[index] : null;
+        }
+
+        private static List<Pawn> DistinctMembers(List<Pawn> members)
+        {
+            return members?.Where(p => p != null).Distinct().ToList() ?? new List<Pawn>();
         }
     }
 
@@ -177,6 +176,12 @@ namespace CrewPresets
                 }
             }
             if (anyChanged) notifyChanged?.Invoke();
+            ReportSkipped(skipped);
+        }
+
+        // One message naming every member that couldn't be applied, with the reason.
+        public static void ReportSkipped(List<string> skipped)
+        {
             if (skipped.Count > 0)
                 Messages.Message("Couldn't add: " + skipped.ToCommaList(), MessageTypeDefOf.RejectInput, historical: false);
         }
@@ -189,8 +194,8 @@ namespace CrewPresets
                 .ToList() ?? new List<Pawn>();
         }
 
-        // True when the current selection is exactly this group (well, the members that are
-        // actually present in the dialog) - used to highlight the active preset chip.
+        // True when the selection is exactly the group's members that are present in the
+        // dialog. Drives the active-preset highlight on the Presets button.
         public static bool MatchesSelection(CrewGroup group, List<Pawn> selected, List<TransferableOneWay> transferables)
         {
             if (transferables == null) return false;
@@ -199,11 +204,6 @@ namespace CrewPresets
                 .ToList();
             if (present.Count == 0 || selected.Count != present.Count) return false;
             return present.All(selected.Contains);
-        }
-
-        public static bool IsRequired(RitualRoleAssignments assignments, Pawn p)
-        {
-            return assignments.Forced(p) || (assignments.ExtraRequiredPawnsForReading?.Contains(p) ?? false);
         }
     }
 }

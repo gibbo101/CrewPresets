@@ -13,16 +13,13 @@ namespace CrewPresets
         public string name = "";
         public List<Pawn> members = new List<Pawn>();
 
-        /// <summary>Members that still exist and can be ticked in a dialog right now.</summary>
-        public IEnumerable<Pawn> AvailableMembers => members.Where(p => p != null && !p.Destroyed && !p.Dead);
-
         public void ExposeData()
         {
             Scribe_Values.Look(ref name, "name", "");
             Scribe_Collections.Look(ref members, "members", LookMode.Reference);
             if (Scribe.mode == LoadSaveMode.PostLoadInit)
             {
-                // Lazy-prune pawns that no longer exist (null refs after load).
+                // References to pawns that were not saved resolve to null; drop them.
                 members ??= new List<Pawn>();
                 members.RemoveAll(p => p == null);
             }
@@ -63,15 +60,11 @@ namespace CrewPresets
 
         public static GameComponent_CrewPresets Get => Current.Game.GetComponent<GameComponent_CrewPresets>();
 
-        public List<Pawn> ExclusionsFor(int engineId)
-        {
-            BoardingExclusions e = boardingExclusions.FirstOrDefault(x => x.engineId == engineId);
-            return e?.pawns;
-        }
+        public List<Pawn> ExclusionsFor(int engineId) => FindExclusions(engineId)?.pawns;
 
         public List<Pawn> EnsureExclusionsFor(int engineId)
         {
-            BoardingExclusions e = boardingExclusions.FirstOrDefault(x => x.engineId == engineId);
+            BoardingExclusions e = FindExclusions(engineId);
             if (e == null)
             {
                 e = new BoardingExclusions { engineId = engineId };
@@ -79,6 +72,9 @@ namespace CrewPresets
             }
             return e.pawns;
         }
+
+        private BoardingExclusions FindExclusions(int engineId) =>
+            boardingExclusions.FirstOrDefault(x => x.engineId == engineId);
 
         public override void ExposeData()
         {
