@@ -19,6 +19,9 @@ FEATURES
 - Drag down the tick column to add or remove a run of pawns in one sweep.
 - Groups are stored in the save file, like bills.
 
+WHAT'S NEW IN 1.0.2
+- RimWorld 1.7 support. 1.6 keeps working.
+
 WHAT'S NEW IN 1.0.1
 - New member screen: choose from the whole colony with skills, passions and equipped weapons on show, instead of a list of bare names.
 - Sortable skill columns on both group screens, and each group remembers its own sort.
@@ -28,7 +31,7 @@ WHAT'S NEW IN 1.0.1
 - Updated to Multiplayer API 0.6.
 
 MULTIPLAYER
-Built with the Multiplayer mod in mind; group changes are synced. Runs fine without Multiplayer installed.
+Built with the Multiplayer mod in mind; group changes are synced (Multiplayer isn't out for 1.7 yet). Runs fine without Multiplayer installed.
 
 COMPANION MODS
 Two mods that handle the other half of the same job - getting a shuttle loaded and away without ten minutes of clicking:
