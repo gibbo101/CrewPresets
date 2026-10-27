@@ -5,6 +5,7 @@
   <packageId>luke.crewpresets</packageId>
   <supportedVersions>
     <li>1.6</li>
+    <li>1.7</li>
   </supportedVersions>
   <description>Save named groups of colonists, animals and mechs - "Mining Crew", "Strike Team", "Pack Train" - and apply them with one click in pawn-selection dialogs, instead of hand-picking the same pawns every time.
 
