@@ -1,12 +1,12 @@
 # CLAUDE.md — Crew Presets
 
-A RimWorld 1.6 mod: save named groups of pawns (colonists/animals/mechs — "Mining Crew",
+A RimWorld 1.6 / 1.7 mod: save named groups of pawns (colonists/animals/mechs — "Mining Crew",
 "Strike Team", "Pack Train") and apply them with one click in the vanilla pawn-selection
 dialogs. This file is mod-specific; the **workspace** `../CLAUDE.md` (global RimWorld rules)
 also applies — on conflict, this file wins.
 
-Full design: `DESIGN.md` (in this folder). Sibling future mod: **Transporter Loadouts**
-(`../ModIdeas/TransporterLoadouts-DESIGN.md`) — separate mod, pairs with this one if both installed.
+Full design: `DESIGN.md` (in this folder). Sibling mod: **Transporter Loadouts**
+(`../TransporterLoadouts/`) — separate mod, pairs with this one if both installed.
 
 ## Scope rules
 - **Standalone, no DLC/mod dependencies** (Harmony only). Patches the *vanilla* dialogs so it
@@ -56,8 +56,9 @@ Full design: `DESIGN.md` (in this folder). Sibling future mod: **Transporter Loa
 - Save discipline: once published, don't rename Scribe keys (`groups`, `name`, `members`).
 
 ## Build / deploy / test
-- `cd Source && dotnet build -c Release` (.NET 10 SDK → net48). CopyToMod drops both DLLs
-  into `Assemblies/` (gitignored).
+- `cd Source && dotnet build -c Release` builds both targets: net48 → `1.6/Assemblies/` and net10.0 →
+  `1.7/Assemblies/` (gitignored), each with `0MultiplayerAPI.dll`. 1.7 is Ludeon's own engine on .NET 10:
+  Harmony 3.x, no `RemoveFramework`.
 - Deploy: copy the mod (minus `Source/`, `obj/`, `bin/`, `.git/`) into
   `D:\SteamLibrary\steamapps\common\RimWorld\Mods\CrewPresets` (robocopy `/MIR /XD Source obj bin .git`).
   C# changes need a full game restart.
@@ -85,6 +86,11 @@ Full design: `DESIGN.md` (in this folder). Sibling future mod: **Transporter Loa
   fires on ANY mouse button). Right-click on the button itself does nothing (Luke 2026-07-02).
 - Controls show on the **Pawns tab only** (transferable dialogs).
 
+6. ✅ Group screens show every pawn's skills, passions and equipped weapon in a Work-tab-style grid,
+   with sortable skill columns (per-group sort), a drag-paintable tick/cross column, and optional
+   skill entries in the transfer dialogs' "Sort by" dropdown (mod setting). Released as 1.0.1.
+
+Published: Workshop **3756372833**, public repo **github.com/gibbo101/CrewPresets** (MIT).
+
 ## Remaining
 - In-game test of all four dialogs; MP smoke-test of group CRUD sync.
-- First commit + GitHub repo when Luke asks.
